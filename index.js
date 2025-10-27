@@ -8,6 +8,7 @@ if (!actionsToken || !actionsUrl) {
 
 const scope = process.env.INPUT_SCOPE;
 const identity = process.env.INPUT_IDENTITY;
+const selfHostedDomain = process.env.INPUT_SELF_HOSTED_DOMAIN;
 const domain = process.env.INPUT_DOMAIN;
 
 if (!scope || !identity) {
@@ -36,8 +37,34 @@ async function fetchWithRetry(url, options = {}, retries = 3, initialDelay = 100
     throw new Error(`Fetch failed after ${attempt} attempts for URL: ${url}.`);
 }
 
+async function fetchFromDomain(fetchDomain, oidcToken) {
+    // Now fetch the token from OctoSTS
+    const scopes = [scope];
+    // Pass scopes as a comma-separated string in the URL
+    const scopesParam = scopes.join(',');
+    const res = await fetchWithRetry(`https://${fetchDomain}/sts/exchange?scope=${scope}&scopes=${scopesParam}&identity=${identity}`, { headers: { 'Authorization': `Bearer ${oidcToken}` } });
+    if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`OctoSTS fetch failed: ${errorText}`);
+    }
+    const json = await res.json();
+
+    if (!json.token) { console.log(`::error::${json.message}`); process.exit(1); }
+    const tok = json.token;
+
+    const crypto = require('crypto');
+    const tokHash = crypto.createHash('sha256').update(tok).digest('hex');
+    console.log(`Token hash: ${tokHash}`);
+
+    console.log(`::add-mask::${tok}`);
+    const fs = require('fs');
+    fs.appendFile(process.env.GITHUB_OUTPUT, `token=${tok}`, function(err) { if (err) throw err; }); // Write the output.
+    fs.appendFile(process.env.GITHUB_STATE, `token=${tok}`, function(err) { if (err) throw err; }); // Write the state, so the post job can delete the token.
+
+}
+
 (async function main() {
-    // You can use await inside this function block
+    let json = {};
     try {
         // First fetch to get the GitHub Actions OIDC for the audience we need.
         const res = await fetchWithRetry(`${actionsUrl}&audience=${domain}`, { headers: { 'Authorization': `Bearer ${actionsToken}` } }, 5);
@@ -45,31 +72,23 @@ async function fetchWithRetry(url, options = {}, retries = 3, initialDelay = 100
             const errorText = await res.text();
             throw new Error(`GitHub Actions OIDC fetch failed: ${errorText}`);
         }
-        const json = await res.json();
-
-        // Now fetch the token from OctoSTS
-        const scopes = [scope];
-        // Pass scopes as a comma-separated string in the URL
-        const scopesParam = scopes.join(',');
-        const res2 = await fetchWithRetry(`https://${domain}/sts/exchange?scope=${scope}&scopes=${scopesParam}&identity=${identity}`, { headers: { 'Authorization': `Bearer ${json.value}` } });
-        if (!res2.ok) {
-            const errorText = await res2.text();
-            throw new Error(`OctoSTS fetch failed: ${errorText}`);
-        }
-        const json2 = await res2.json();
-
-        if (!json2.token) { console.log(`::error::${json2.message}`); process.exit(1); }
-        const tok = json2.token;
-
-        const crypto = require('crypto');
-        const tokHash = crypto.createHash('sha256').update(tok).digest('hex');
-        console.log(`Token hash: ${tokHash}`);
-
-        console.log(`::add-mask::${tok}`);
-        const fs = require('fs');
-        fs.appendFile(process.env.GITHUB_OUTPUT, `token=${tok}`, function (err) { if (err) throw err; }); // Write the output.
-        fs.appendFile(process.env.GITHUB_STATE, `token=${tok}`, function (err) { if (err) throw err; }); // Write the state, so the post job can delete the token.
+        json = await res.json();
     } catch (err) {
-        console.log(`::error::${err.stack}`); process.exit(1);
+        console.log(`::error::failed to get Github OIDC token: ${err.stack}`); process.exit(1);
+    }
+    if (selfHostedDomain !== undefined && selfHostedDomain != "") {
+        // Try self-hosted first
+        try {
+            await fetchFromDomain(selfHostedDomain, json.value);
+        } catch (err) {
+            console.log(`::error::failed to get token from self-hosted: ${err.stack}`);
+        }
+    }
+
+    // Fallback to official octo-sts if self-host fails
+    try {
+        await fetchFromDomain(domain, json.value);
+    } catch (err) {
+        console.log(`::error::failed to get token from official: ${err.stack}`);
     }
 })();
