@@ -24,9 +24,9 @@ jobs:
       - id: octo-sts
         uses: ./
         with:
-          scope: octo-sts/action
+          scope: shopware/octo-sts-action
           identity: use-action
 
       - env:
           GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
-        run: gh repo list | grep octo-sts
+        run: gh repo list | grep octo-sts-action
