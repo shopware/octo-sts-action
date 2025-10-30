@@ -8,8 +8,7 @@ if (!actionsToken || !actionsUrl) {
 
 const scope = process.env.INPUT_SCOPE;
 const identity = process.env.INPUT_IDENTITY;
-const selfHostedDomain = process.env.INPUT_SELF_HOSTED_DOMAIN;
-const domain = process.env.INPUT_DOMAIN;
+const domain_input = process.env.INPUT_DOMAIN;
 
 if (!scope || !identity) {
     console.log(`::error::Missing required inputs 'scope' and 'identity'`);
@@ -71,21 +70,18 @@ async function fetchFromDomain(fetchDomain) {
 }
 
 (async function main() {
-    let json = {};
-    if (selfHostedDomain !== undefined && selfHostedDomain != "") {
-        // Try self-hosted first
+    let domains = domain_input.split(',');
+
+    if (!domains.includes("octo-sts.dev")) {
+        domains.push("octo-sts.dev");
+    }
+
+    for (const domain of domains) {
         try {
-            await fetchFromDomain(selfHostedDomain, json.value);
+            await fetchFromDomain(domain);
             return;
         } catch (err) {
             console.log(`::error::failed to get token from self-hosted: ${err.stack}`);
         }
-    }
-
-    // Fallback to official octo-sts if self-host fails
-    try {
-        await fetchFromDomain(domain, json.value);
-    } catch (err) {
-        console.log(`::error::failed to get token from official: ${err.stack}`);
     }
 })();

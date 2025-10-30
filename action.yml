@@ -8,10 +8,6 @@ description: |
   organization or repository.
 
 inputs:
-  self_hosted_domain:
-    description: |
-      The domain of the self-hosted Octo STS instance to use to federate.
-
   domain:
     description: |
       The domain of the Octo STS instance to use to federate.
