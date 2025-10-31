@@ -81,7 +81,7 @@ async function fetchFromDomain(fetchDomain) {
             await fetchFromDomain(domain);
             return;
         } catch (err) {
-            console.log(`::error::failed to get token from self-hosted: ${err.stack}`);
+            console.log(`::error::failed to get token from ${domain}: ${err.stack}`);
         }
     }
 })();
