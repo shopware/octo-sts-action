@@ -84,4 +84,7 @@ async function fetchFromDomain(fetchDomain) {
             console.log(`::error::failed to get token from ${domain}: ${err.stack}`);
         }
     }
+
+    console.log(`::error::Failed to get a token`);
+    process.exit(1);
 })();
