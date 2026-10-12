@@ -1,7 +1,7 @@
 issuer: https://token.actions.githubusercontent.com
-subject: repo:shopware/octo-sts-action:pull_request
+subject_pattern: repo:shopware/octo-sts-action:(pull_request|ref:refs/heads/main)
 claim_pattern:
-  workflow_ref: shopware/octo-sts-action/\.github/workflows/use-action\.yaml@refs/heads/main
+  workflow_ref: shopware/octo-sts-action/\.github/workflows/use-action\.yaml@refs/(heads/main|pull/[0-9]+/merge)
 
 permissions:
   contents: read
